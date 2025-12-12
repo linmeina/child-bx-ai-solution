@@ -3,14 +3,30 @@ import { UserInput, AnalysisResult, Language } from "../types";
 
 // Safely retrieve API Key (handles environments where process is undefined)
 const getApiKey = (): string => {
+  // 1. Try standard process.env (Node.js, Webpack, Next.js server/public)
   try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env.API_KEY) return process.env.API_KEY;
+      if (process.env.NEXT_PUBLIC_API_KEY) return process.env.NEXT_PUBLIC_API_KEY;
+      if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
     }
   } catch (e) {
     // Ignore error
   }
-  // Return empty string or handle error appropriately in UI if key is missing
+
+  // 2. Try import.meta.env (Vite, Modern ESM)
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      if (import.meta.env.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
+      // @ts-ignore
+      if (import.meta.env.API_KEY) return import.meta.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  
   return '';
 };
 
@@ -226,6 +242,11 @@ User Input:
   `;
 
   try {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        console.error("API Key not found. Please set VITE_API_KEY in your environment variables.");
+    }
+    
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
